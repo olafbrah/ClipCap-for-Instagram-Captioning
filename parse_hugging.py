@@ -11,8 +11,10 @@ import requests
 from io import BytesIO
 import os
 
+"""
+python parse_hugging.py --clip_model_type RN50x4 --json_path '/Users/albertguo/182proj/data/huggingface/train/data.json'
 
-# python parse_hugging.py --clip_model_type RN50x4 --json_path '/Users/albertguo/182proj/data/huggingface/train/data.json'
+"""
         
 def main(clip_model_type: str, json_path: str):
     device = torch.device('cuda:0')
