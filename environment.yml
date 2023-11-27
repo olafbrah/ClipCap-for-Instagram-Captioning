@@ -2,7 +2,7 @@ name: clip_prefix_caption
 channels:
   - defaults
 dependencies:
-- python>=3.8
+- python=3.8
 - pip>=21
 - scikit-image=0.18.1
 - pip:

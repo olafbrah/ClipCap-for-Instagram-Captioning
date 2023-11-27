@@ -11,8 +11,12 @@ import sys
 import argparse
 import json
 from typing import Tuple, Optional, Union
+'''
 
+python train.py --data ./data/huggingface/embeddings_RN50x4_train.pkl  --out_dir ./hugging_train/
+python train.py --only_prefix --data ./data/coco/oscar_split_ViT-B_32_train.pkl --out_dir ./coco_train/ --mapping_type transformer  --num_layres 8 --prefix_length 40 --prefix_length_clip 40
 
+'''
 class MappingType(Enum):
     MLP = 'mlp'
     Transformer = 'transformer'
@@ -233,7 +237,7 @@ class ClipCaptionModel(nn.Module):
         out = self.gpt(inputs_embeds=embedding_cat, labels=labels, attention_mask=mask)
         return out
 
-    def __init__(self, prefix_length: int, clip_length: Optional[int] = None, prefix_size: int = 512,
+    def __init__(self, prefix_length: int, clip_length: Optional[int] = None, prefix_size: int = 640,
                  num_layers: int = 8, mapping_type: MappingType = MappingType.MLP):
         super(ClipCaptionModel, self).__init__()
         self.prefix_length = prefix_length
@@ -352,7 +356,8 @@ def main():
     args = parser.parse_args()
     prefix_length = args.prefix_length
     dataset = ClipCocoDataset(args.data, prefix_length, normalize_prefix=args.normalize_prefix)
-    prefix_dim = 640 if args.is_rn else 512
+    # prefix_dim = 640 if args.is_rn else 512
+    prefix_dim = 640
     args.mapping_type = {'mlp': MappingType.MLP, 'transformer': MappingType.Transformer}[args.mapping_type]
     if args.only_prefix:
         model = ClipCaptionPrefix(prefix_length, clip_length=args.prefix_length_clip, prefix_size=prefix_dim,

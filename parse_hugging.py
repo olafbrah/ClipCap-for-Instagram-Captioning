@@ -11,12 +11,13 @@ import requests
 from io import BytesIO
 import os
 
+
 # python parse_hugging.py --clip_model_type RN50x4 --json_path '/Users/albertguo/182proj/data/huggingface/train/data.json'
         
 def main(clip_model_type: str, json_path: str):
     device = torch.device('cuda:0')
     clip_model_name = clip_model_type.replace('/', '_')
-    out_path = f"./data/huggingface/oscar_split_{clip_model_name}_train.pkl"
+    out_path = f"./data/huggingface/embeddings_{clip_model_name}_train.pkl"
     clip_model, preprocess = clip.load(clip_model_type, device=device, jit=False)
     with open('./data/huggingface/train/data.json', 'r') as f:
         data = json.load(f)["rows"]
