@@ -65,6 +65,7 @@ def train_epoch(model, loader, optimizer, scheduler, num_data_pts=8, val_loader=
 
         if batch % interval == 0:
             train_loss_history.append(avg_train_loss/interval)
+            avg_train_loss = 0
             torch.save(model.state_dict(), f"checkpoints/model_{batch}.pt")
             if val_loader and batch > 0:
                 model.eval()
