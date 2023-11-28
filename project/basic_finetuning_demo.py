@@ -7,7 +7,7 @@ from transformers import GPT2Tokenizer
 
 device = "cpu"
 
-clip_model, preprocess = clip.load("ViT-B/32", device="cpu", jit=False)
+clip_model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
 train_data = InstagramDataset(clip_model, preprocess, tokenizer)

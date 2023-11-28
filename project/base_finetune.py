@@ -41,7 +41,7 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
             train_loss.extend(loss[0])
     return train_loss, validation_loss
 
-def train_epoch(model, loader, optimizer, scheduler, num_data_pts=10, val_loader=None, device="cpu"):
+def train_epoch(model, loader, optimizer, scheduler, num_data_pts=8, val_loader=None, device="cpu"):
     interval = len(loader) // num_data_pts
     train_loss_history, avg_train_loss = [], 0
     val_loss_history = []
@@ -65,6 +65,7 @@ def train_epoch(model, loader, optimizer, scheduler, num_data_pts=10, val_loader
 
         if batch % interval == 0:
             train_loss_history.append(avg_train_loss/interval)
+            torch.save(model.state_dict(), f"checkpoints/model_{batch}.pt")
             if val_loader and batch > 0:
                 model.eval()
                 validation_loss = 0
