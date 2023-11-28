@@ -82,7 +82,7 @@ class CaptionModel(nn.Module):
                 )
             )
 
-def generate2(
+def generate(
     model,
     tokenizer,
     tokens=None,
