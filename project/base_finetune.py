@@ -17,12 +17,14 @@ from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 
 
-def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cpu"):
+def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cpu", num_data_pts=8):
 
     train_loader = DataLoader(dataset=train, batch_size=batch_size, shuffle=True)
     train_loss = []
     if validation:
-        validation_loader = DataLoader(dataset=validation, batch_size=10, shuffle=False)
+        validation_loader = DataLoader(dataset=validation, batch_size=batch_size, shuffle=False)
+    else:
+        validation_loader = None
     validation_loss = []
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
@@ -31,7 +33,7 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
 
     for epoch in range(epochs):
         print(f"Training Epoch {epoch + 1}\n>>>")
-        loss = train_epoch(model, train_loader, optimizer, scheduler, num_data_pts=5, val_loader=validation_loader, device=device)
+        loss = train_epoch(model, train_loader, optimizer, scheduler, num_data_pts=num_data_pts, val_loader=validation_loader, device=device)
         if loss[1]:
             train_loss.extend(loss[0])
             validation_loss.extend(loss[1])
@@ -59,17 +61,19 @@ def train_epoch(model, loader, optimizer, scheduler, num_data_pts=10, val_loader
         optimizer.step()
         scheduler.step()
         optimizer.zero_grad()
+        print(f"Batch {batch +1}/{len(loader)}")
 
         if batch % interval == 0:
             train_loss_history.append(avg_train_loss/interval)
-            if val_loader:
+            if val_loader and batch > 0:
                 model.eval()
                 validation_loss = 0
                 for tokens, prefix, mask in val_loader:
                     tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
                     outputs = model(tokens, prefix, mask)
+                    logits = outputs.logits[:, 10 - 1: -1]
                     loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
-                    validation_loss += loss.item
+                    validation_loss += loss.item()
                 val_loss_history.append(validation_loss/len(val_loader))
                 model.train()
     return train_loss_history, val_loss_history
