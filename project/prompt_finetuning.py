@@ -8,10 +8,10 @@ from transformers import GPT2Tokenizer
 import numpy as np
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-clip_model, preprocess = clip.load("ViT-B/32", device='cpu', jit=False)
+clip_model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
-train_data = InstagramDataset(clip_model, preprocess, tokenizer, path="instagram_data")
+train_data = InstagramDataset(clip_model, preprocess, tokenizer, path="instagram_data", prompt="A instagram caption would describe this as ", device=device)
 validation_data = InstagramDataset(clip_model, preprocess, tokenizer, split="test")
 
 # model = CaptionModel(10)
@@ -20,8 +20,8 @@ model.load_state_dict(torch.load("state_dicts/coco_weights.pt", map_location="cp
 model = model.eval()
 model = model.to(device)
 num_data_pts = 8
-epochs = 5
-train_loss, _ = fine_tune(model, train_data, epochs=epochs, batch_size=40, device=device, num_data_pts=num_data_pts)
+epochs = 1
+train_loss, _ = fine_tune(model, train_data, epochs=epochs, batch_size=40, device=device, num_data_pts=num_data_pts, checkpoint_path="checkpoints/prompted")
 batches = range(len(train_loss))
 import matplotlib.pyplot as plt
 
@@ -32,4 +32,4 @@ plt.xticks(np.arange(0, max(batches) + 1, 1.0))
 # Optionally, you can add a title
 plt.title("Training Loss Over Epochs")
 # Saving the plot
-plt.savefig("loss_history.png")
+plt.savefig("loss_history_prompted.png")

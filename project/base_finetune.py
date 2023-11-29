@@ -17,7 +17,7 @@ from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 
 
-def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cpu", num_data_pts=8, state_prefix="model"):
+def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cpu", num_data_pts=8, state_prefix="model", checkpoint_path="checkpoints"):
 
     train_loader = DataLoader(dataset=train, batch_size=batch_size, shuffle=True)
     train_loss = []
@@ -34,7 +34,7 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
 
     for epoch in range(epochs):
         print(f"Training Epoch {epoch + 1}\n>>>")
-        loss = train_epoch(model, train_loader, optimizer, scheduler, epoch, num_data_pts=num_data_pts, val_loader=validation_loader, device=device, state_prefix=state_prefix)
+        loss = train_epoch(model, train_loader, optimizer, scheduler, epoch, num_data_pts=num_data_pts, val_loader=validation_loader, device=device, state_prefix=state_prefix, checkpoint_path=checkpoint_path)
         if loss[1]:
             train_loss.extend(loss[0])
             validation_loss.extend(loss[1])
@@ -42,11 +42,11 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
             train_loss.extend(loss[0])
     return train_loss, validation_loss
 
-def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_loader=None, device="cpu", state_prefix=None):
+def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_loader=None, device="cpu", state_prefix=None, checkpoint_path=""):
     interval = len(loader) // num_data_pts
     train_loss_history, avg_train_loss = [], 0
     val_loss_history = []
-
+    model.to(device)
     for batch, (tokens, prefix, mask) in tqdm(enumerate(loader), unit="batch", total=len(loader)):
 
         model.zero_grad()
@@ -56,19 +56,18 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
 
         logits = outputs.logits[:, 10 - 1: -1]  # 10 is prefix_length
         loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
-
         avg_train_loss += loss.item()
 
         loss.backward()
         optimizer.step()
         scheduler.step()
         optimizer.zero_grad()
-        print(f"Batch {batch +1}/{len(loader)}")
+        print(f"Batch {batch +1}/{len(loader)} with loss {loss.item()}")
 
         if batch % interval == 0:
             train_loss_history.append(avg_train_loss/interval)
             avg_train_loss = 0
-            torch.save(model.state_dict(), f"checkpoints/{state_prefix}_{epoch}_{batch}.pt")
+            torch.save(model.state_dict(), f"{checkpoint_path}/{state_prefix}_{epoch}_{batch}.pt")
             if val_loader and batch > 0:
                 model.eval()
                 validation_loss = 0

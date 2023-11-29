@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import nn
 import loralib as lora
-from project.clip_model import CaptionModel
+from clip_model import CaptionModel
 
 
 def num_train(model):

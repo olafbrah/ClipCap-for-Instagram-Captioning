@@ -14,7 +14,7 @@ class InstagramDataset(Dataset):
 
     --> Possible will error with device stuff, might have to pass in device
     """
-    def __init__(self, clip, preprocessor, tokenizer, path="instagram_data", split="train"):
+    def __init__(self, clip, preprocessor, tokenizer, path="instagram_data", split="train", prompt="", device="cuda"):
         self.clip_model = clip
         self.preprocess = preprocessor
         self.tokenizer = tokenizer
@@ -22,6 +22,8 @@ class InstagramDataset(Dataset):
         self.data_dict = load_from_disk(path)[split]
         self.max_seq_len = 77 # clip max sequence length
         self.prefix_len = 10
+        self.prompt = prompt
+        self.device = device
 
     def __len__(self):
         return self.data_dict.num_rows
@@ -30,14 +32,15 @@ class InstagramDataset(Dataset):
         entry = self.data_dict[idx]
         pil_image = entry["image"]
         image = self.preprocess(pil_image).unsqueeze(0)
+        image = image.to(self.device)
         prefix = self.clip_model.encode_image(image)
 
         caption = entry["caption"]
+        caption = self.prompt + caption
         tokens = torch.tensor(self.tokenizer.encode(caption))
         tokens, mask = self.pad_tokens(tokens)
 
         return tokens, prefix, mask
-
     def pad_tokens(self, tokens):
         padding = self.max_seq_len - tokens.shape[0]
         if padding > 0:

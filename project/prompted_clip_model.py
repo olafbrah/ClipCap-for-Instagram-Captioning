@@ -84,16 +84,8 @@ class PromptedCaptionModel(nn.Module):
             embedding_text = self.gpt.transformer.wte(prepend_tokens)
 
         prefix_projections = self.clip_project(prefix).view(-1, self.prefix_length, self.gpt_embedding_size)
-        if self.prompt_mode == PromptType.OriginalWithWords:
-            print("DEVICE ", prefix_projections.device, self.prepend_embedding.device, embedding_text.device)
-            copy = self.prepend_embedding.expand(prefix_projections.shape[0], -1, -1).to(device)
-            embedding_cat = torch.cat((
-                prefix_projections, 
-                copy, 
-                embedding_text
-            ), dim=1)
-        else:
-            embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
+        
+        embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
         if labels is not None:
             dummy_token = self.get_dummy_token(tokens.shape[0], tokens.device)
             labels = torch.cat((dummy_token, tokens), dim=1)
@@ -130,14 +122,6 @@ class PromptedCaptionModel(nn.Module):
             for param in self.original_model.parameters():
                 param.requires_grad = False
             
-            self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-            device = self.gpt.transformer.wte.weight.device  # Get the device from the model
-
-            prepend_phrase = "A instagram caption would describe this as "
-            prepend_tokens = torch.tensor(self.tokenizer.encode(prepend_phrase)).to(device)
-            prepend_tokens, mask = self.pad_tokens(prepend_tokens)
-            self.prepend_embedding = self.gpt.transformer.wte(prepend_tokens).detach()
-
 
     
 
