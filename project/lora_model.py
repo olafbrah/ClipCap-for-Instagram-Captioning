@@ -52,5 +52,3 @@ class LoraCaptionModel(nn.Module):
 
     def forward(self, tokens, prefix, mask):
         return self.model(tokens, prefix, mask)
-
-model = LoraCaptionModel(4)

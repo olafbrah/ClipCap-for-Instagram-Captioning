@@ -68,13 +68,14 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
             train_loss_history.append(avg_train_loss/interval)
             avg_train_loss = 0
             torch.save(model.state_dict(), f"{checkpoint_path}/{state_prefix}_{epoch}_{batch}.pt")
-            if val_loader and batch > 0:
+            if val_loader:
                 model.eval()
                 validation_loss = 0
                 for tokens, prefix, mask in val_loader:
                     tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
                     outputs = model(tokens, prefix, mask)
                     logits = outputs.logits[:, 10 - 1: -1]
+                    print(logits.shape)
                     loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
                     validation_loss += loss.item()
                 val_loss_history.append(validation_loss/len(val_loader))
