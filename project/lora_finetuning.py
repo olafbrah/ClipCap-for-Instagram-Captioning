@@ -6,7 +6,6 @@ from dataset import InstagramDataset
 from base_finetune import fine_tune
 from transformers import GPT2Tokenizer
 import matplotlib.pyplot as plt
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 clip_model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
