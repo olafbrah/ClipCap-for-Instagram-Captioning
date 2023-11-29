@@ -15,6 +15,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
+import matplotlib.pyplot as plt
 
 
 def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cpu", num_data_pts=8, state_prefix="model", checkpoint_path="checkpoints"):
@@ -47,24 +48,24 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
     train_loss_history, avg_train_loss = [], 0
     val_loss_history = []
     model.to(device)
-    for batch, (tokens, prefix, mask) in tqdm(enumerate(loader), unit="batch", total=len(loader)):
+    loss = torch.tensor(0)
+    prog_bar = tqdm(enumerate(loader), unit="batch", total=len(loader))
+    for batch, (tokens, prefix, mask) in prog_bar:
+        prog_bar.set_description(f"Batch {batch+1}/{len(loader)} | Loss: {loss.item()} ")
 
         model.zero_grad()
         tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
+
         outputs = model(tokens, prefix, mask)
-
-
         logits = outputs.logits[:, 10 - 1: -1]  # 10 is prefix_length
         loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
         avg_train_loss += loss.item()
-
         loss.backward()
         optimizer.step()
         scheduler.step()
         optimizer.zero_grad()
-        print(f"Batch {batch +1}/{len(loader)} with loss {loss.item()}")
 
-        if batch % interval == 0:
+        if batch % interval == 0 and batch > 0:
             train_loss_history.append(avg_train_loss/interval)
             avg_train_loss = 0
             torch.save(model.state_dict(), f"{checkpoint_path}/{state_prefix}_{epoch}_{batch}.pt")
@@ -75,9 +76,12 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
                     tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
                     outputs = model(tokens, prefix, mask)
                     logits = outputs.logits[:, 10 - 1: -1]
-                    print(logits.shape)
                     loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
                     validation_loss += loss.item()
                 val_loss_history.append(validation_loss/len(val_loader))
+                plt.plot(range(len(val_loss_history)), val_loss_history)
                 model.train()
+            plt.plot(range(len(train_loss_history)), train_loss_history)
+            plt.savefig("current_loss_history.png")
+            plt.show()
     return train_loss_history, val_loss_history
