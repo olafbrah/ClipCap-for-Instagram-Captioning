@@ -35,10 +35,10 @@ class LoraCaptionModel(nn.Module):
         self.model.gpt.transformer.wte.weight = w
 
         # add lora to each gpt_block <-- conv1d keeps erroring
-        for block in self.model.gpt.transformer.h:
-            w = block.attn.c_attn.weight
-            block.attn.c_attn = lora.MergedLinear(768, 2304, fan_in_fan_out=True, enable_lora=[True, False, True], r=rank)
-            block.attn.c_attn.weight = w
+        # for block in self.model.gpt.transformer.h:
+        #     w = block.attn.c_attn.weight
+        #     block.attn.c_attn = lora.MergedLinear(768, 2304, fan_in_fan_out=True, enable_lora=[True, False, True], r=rank)
+        #     block.attn.c_attn.weight = w
 
         # add lora to projection map
         map = self.model.clip_project.model
@@ -52,3 +52,5 @@ class LoraCaptionModel(nn.Module):
 
     def forward(self, tokens, prefix, mask):
         return self.model(tokens, prefix, mask)
+
+model = LoraCaptionModel(4)
