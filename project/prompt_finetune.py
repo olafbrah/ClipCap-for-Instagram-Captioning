@@ -35,7 +35,9 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
 
     for epoch in range(epochs):
         print(f"Training Epoch {epoch + 1}\n>>>")
-        loss = train_epoch(model, train_loader, optimizer, scheduler, epoch, num_data_pts=num_data_pts, val_loader=validation_loader, device=device, state_prefix=state_prefix, checkpoint_path=checkpoint_path, chart_title=chart_title)
+        loss = train_epoch(model, train_loader, optimizer, scheduler, epoch, num_data_pts=num_data_pts, 
+                           val_loader=validation_loader, device=device, state_prefix=state_prefix, 
+                           checkpoint_path=checkpoint_path, chart_title=chart_title)
         if loss[1]:
             train_loss.extend(loss[0])
             validation_loss.extend(loss[1])
@@ -50,13 +52,13 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
     model.to(device)
     loss = torch.tensor(0)
     prog_bar = tqdm(enumerate(loader), unit="batch", total=len(loader))
-    for batch, (tokens, prefix, mask) in prog_bar:
+    for batch, (tokens, prefix, mask, caption) in prog_bar:
         prog_bar.set_description(f"Batch {batch+1}/{len(loader)} | Loss: {loss.item()} ")
 
         model.zero_grad()
         tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
 
-        outputs = model(tokens, prefix, mask)
+        outputs = model(caption, prefix)
         logits = outputs.logits[:, prefix_size - 1: -1]  # 10 is prefix_length
         loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
         avg_train_loss += loss.item()
@@ -65,7 +67,7 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
         scheduler.step()
         optimizer.zero_grad()
 
-        if batch % interval == 0 and batch >0:
+        if batch % interval == 0:
             train_loss_history.append(avg_train_loss/interval)
             avg_train_loss = 0
             torch.save(model.state_dict(), f"{checkpoint_path}/{state_prefix}_{epoch}_{batch}.pt")
@@ -75,9 +77,9 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
                 model.eval()
                 with torch.no_grad():
                     validation_loss = 0
-                    for tokens, prefix, mask in val_loader:
+                    for tokens, prefix, mask, caption in val_loader:
                         tokens, mask, prefix = tokens.to(device), mask.to(device), prefix.to(device, dtype=torch.float32)
-                        outputs = model(tokens, prefix, mask)
+                        outputs = model(caption, prefix)
                         logits = outputs.logits[:, prefix_size - 1: -1]
                         loss = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tokens.flatten(), ignore_index=0)
                         validation_loss += loss.item()
@@ -85,6 +87,7 @@ def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_
                     x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(val_loss_history), num=len(val_loss_history), endpoint=False)
                     plt.plot(x_axis_val, val_loss_history, label='Validation Loss')
                 model.train()
+
             plt.ylabel('Cross Entropy Loss')
             plt.xlabel('Epochs')
             x_axis_train = np.linspace(1/num_data_pts, 1/num_data_pts * len(train_loss_history), num=len(train_loss_history), endpoint=False)

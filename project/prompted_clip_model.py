@@ -63,29 +63,32 @@ class PromptedCaptionModel(nn.Module):
     def pad_tokens(self, tokens):
         padding = self.max_seq_len - tokens.shape[0]
         if padding > 0:
-            tokens = torch.cat((tokens, torch.zeros(padding, dtype=torch.int64) - 1))
+            tokens = torch.cat((tokens, torch.zeros(padding, dtype=torch.int64).to(self.device) - 1))
         elif padding < 0:
             tokens = tokens[:self.max_seq_len]
         mask = tokens.ge(0)  # mask is zero where we out of sequence
         tokens[~mask] = 0
         mask = mask.float()
-        mask = torch.cat((torch.ones(self.prefix_length), mask), dim=0)  # adding prefix mask
+        mask = torch.cat((torch.ones(self.prefix_length).to(self.device), mask), dim=0)  # adding prefix mask
         return tokens, mask
-    
-    def forward(self, tokens: torch.Tensor, prefix: torch.Tensor, mask: Optional[torch.Tensor] = None,
-                labels: Optional[torch.Tensor] = None):
-        device = tokens.device
-        if self.training:
-            embedding_text = self.gpt.transformer.wte(tokens)
-        else:
-            original_text = self.original_model(tokens, prefix, mask, labels)
-            original_text = r"Describe {orignial_text} like an instagram caption"
-            prepend_tokens = self.tokenizer.encode(original_text, return_tensors="pt").to(device)
-            embedding_text = self.gpt.transformer.wte(prepend_tokens)
 
+    
+    def forward(self, caption, prefix: torch.Tensor,
+                labels: Optional[torch.Tensor] = None):
+        # embedding_text = torch.cat((self.prepend_embedding.unsqueeze(0).repeat(40, 1, 1),self.gpt.transformer.wte(tokens)), dim=1 )
+        # ones_tensor = torch.ones(40, 9).to(device)
+        # mask = torch.cat((ones_tensor, mask), dim=1)
+            
+        # prefix_embed = model.clip_project(prefix).reshape(1, prefix_length, -1)
         prefix_projections = self.clip_project(prefix).view(-1, self.prefix_length, self.gpt_embedding_size)
-        
+
+        curr_text = generate2(self.original_model, self.tokenizer, embed=prefix_projections)
+        curr_text = f" is a picture of {curr_text} and a social media post would caption it {caption}"
+        tokens = torch.tensor(self.tokenizer.encode(curr_text)).to(self.device)
+        tokens, mask = self.pad_tokens(tokens)
+        embedding_text = self.gpt.transformer.wte(tokens).unsqueeze(0)
         embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
+        
         if labels is not None:
             dummy_token = self.get_dummy_token(tokens.shape[0], tokens.device)
             labels = torch.cat((dummy_token, tokens), dim=1)
@@ -94,12 +97,14 @@ class PromptedCaptionModel(nn.Module):
 
     def __init__(self, prefix_length: int, clip_length: Optional[int] = None, prefix_size: int = 512,
                  num_layers: int = 8, mapping_type: MappingType = MappingType.MLP, 
-                 prompt_mode: PromptType = PromptType.OriginalWithWords, weights_path: str = "state_dicts/coco_weights.pt" ):
+                 prompt_mode: PromptType = PromptType.OriginalWithWords, weights_path: str = "state_dicts/coco_weights.pt",
+                device = "cpu" ):
         super(PromptedCaptionModel, self).__init__()
+        self.device = device
         self.max_seq_len = 77
         self.prompt_mode = prompt_mode
         self.prefix_length = prefix_length
-        self.gpt = GPT2LMHeadModel.from_pretrained('gpt2')
+        self.gpt = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
         self.gpt_embedding_size = self.gpt.transformer.wte.weight.shape[1]
         if prefix_length > 10:  # not enough memory
             self.clip_project = nn.Linear(
@@ -122,11 +127,94 @@ class PromptedCaptionModel(nn.Module):
             for param in self.original_model.parameters():
                 param.requires_grad = False
             
+            self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+
+            # prepend_phrase = "is a image of "
+            # prepend_tokens = torch.tensor(self.tokenizer.encode(prepend_phrase)).to(device)
+            # self.prepend_embedding = self.gpt.transformer.wte(prepend_tokens).detach()
+            # self.prepend_embedding = self.prepend_embedding.to(device)
 
     
 
 
 
+# def generate2(
+#     model,
+#     tokenizer,
+#     tokens=None,
+#     prompt=None,
+#     embed=None,
+#     entry_count=1,
+#     entry_length=67,  # maximum number of words
+#     top_p=0.8,
+#     temperature=1.0,
+#     stop_token: str = ".",
+# ):
+#     model.eval()
+#     generated_num = 0
+#     generated_list = []
+#     stop_token_index = tokenizer.encode(stop_token)[0]
+#     filter_value = -float("Inf")
+#     device = next(model.parameters()).device
+
+#     with torch.no_grad():
+
+#         for entry_idx in range(entry_count):
+#             if embed is not None:
+#                 generated = embed
+#             else:
+#                 if tokens is None:
+#                     tokens = torch.tensor(tokenizer.encode(prompt))
+#                     tokens = tokens.unsqueeze(0).to(device)
+
+#                 generated = model.gpt.transformer.wte(tokens)
+
+#             for i in range(entry_length):
+
+#                 outputs = model.gpt(inputs_embeds=generated)
+#                 logits = outputs.logits
+#                 print("LOGITS", logits.shape)
+
+#                 logits = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
+#                 print("LOGITS", logits.shape)
+
+#                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+#                 print(sorted_logits.shape)
+#                 cumulative_probs = torch.cumsum(
+#                     nn.functional.softmax(sorted_logits, dim=-1), dim=-1
+#                 )
+#                 print(cumulative_probs.shape)
+#                 sorted_indices_to_remove = cumulative_probs > top_p
+#                 sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[
+#                     ..., :-1
+#                 ].clone()
+#                 sorted_indices_to_remove[..., 0] = 0
+
+#                 indices_to_remove = sorted_indices[sorted_indices_to_remove]
+#                 logits[:, indices_to_remove] = filter_value
+#                 print("LINE 202 ", logits.shape)
+#                 # next_token = torch.argmax(logits, -1).repeat(40, 1)
+#                 next_token = torch.argmax(logits, -1)
+#                 print(next_token.shape)
+#                 next_token_embed = model.gpt.transformer.wte(next_token).unsqueeze(1)
+#                 print("NEXT_TOKEN: ", next_token_embed.shape)
+#                 if tokens is None:
+#                     tokens = next_token
+#                 else:
+#                     tokens = torch.cat((tokens, next_token), dim=1)
+#                 print(generated.shape)
+#                 generated = torch.cat((generated, next_token_embed), dim=1)
+                
+#                 if stop_token_index == next_token.item():
+#                     break
+            
+#             output_list = list(tokens.squeeze().cpu().numpy())
+#             output_text = tokenizer.decode(output_list)
+
+#             generated_list.append(output_text)
+#     print(generated_list[0])
+
+#     return generated_list[0]
 def generate2(
     model,
     tokenizer,
