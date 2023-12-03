@@ -43,6 +43,18 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
             validation_loss.extend(loss[1])
         else:
             train_loss.extend(loss[0])
+            plt.clf() 
+        x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(validation_loss), num=len(validation_loss), endpoint=False)
+
+        plt.plot(x_axis_val, validation_loss, label='Validation Loss')
+        plt.ylabel('Cross Entropy Loss')
+        plt.xlabel('Epochs')
+        x_axis_train = np.linspace(1/num_data_pts, 1/num_data_pts * len(train_loss), num=len(train_loss), endpoint=False)
+        plt.plot(x_axis_train, train_loss, label='Training Loss')
+        plt.title("Prompt Model Training Curve")
+        plt.legend(loc='best')
+        plt.savefig(f"checkpoints/prompted/curves/contepoch_{epoch}_loss_history.png")
+        plt.show()
     return train_loss, validation_loss
 
 def train_epoch(model, loader, optimizer, scheduler, epoch, num_data_pts=8, val_loader=None, device="cpu", state_prefix=None, checkpoint_path="", prefix_size=10, chart_title="Loss Curve"):

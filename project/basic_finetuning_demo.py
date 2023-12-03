@@ -22,12 +22,15 @@ model.load_state_dict(torch.load("state_dicts/coco_weights.pt", map_location="cp
 model = model.eval()
 model = model.to(device)
 num_data_pts = 8
-train_loss, val_loss = fine_tune(model, train_data, validation=validation_data, epochs=1, 
+train_loss, val_loss = fine_tune(model, train_data, validation=validation_data, epochs=5, 
                           batch_size=64, device=device, num_data_pts=num_data_pts, chart_title="Base Model", 
                           checkpoint_path="/home/albert/tests/project/checkpoints/base")
 
 
 x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(val_loss), num=len(val_loss), endpoint=False)
+torch.save(model.state_dict(), f"checkpoints/base/complete_base_weights.pt")
+
+plt.clf() 
 plt.plot(x_axis_val, val_loss, label='Validation Loss')
 plt.ylabel('Cross Entropy Loss')
 plt.xlabel('Epochs')

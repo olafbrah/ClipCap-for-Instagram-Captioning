@@ -14,7 +14,7 @@ clip_model, preprocess = clip.load("ViT-B/32", device="cpu", jit=False)
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
 # Load specific model weights
-weights_path = "prompted_complete.pt"  # Replace with your weights file path
+weights_path = "checkpoints/prompted/model_2_24815.pt"  # Replace with your weights file path
 prefix_length = 10
 
 model = PromptedCaptionModel(prefix_length)
