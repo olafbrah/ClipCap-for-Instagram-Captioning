@@ -75,24 +75,41 @@ class PromptedCaptionModel(nn.Module):
     
     def forward(self, caption, prefix: torch.Tensor,
                 labels: Optional[torch.Tensor] = None):
-        # embedding_text = torch.cat((self.prepend_embedding.unsqueeze(0).repeat(40, 1, 1),self.gpt.transformer.wte(tokens)), dim=1 )
-        # ones_tensor = torch.ones(40, 9).to(device)
-        # mask = torch.cat((ones_tensor, mask), dim=1)
-            
-        # prefix_embed = model.clip_project(prefix).reshape(1, prefix_length, -1)
+        
         prefix_projections = self.clip_project(prefix).view(-1, self.prefix_length, self.gpt_embedding_size)
 
-        curr_text = generate2(self.original_model, self.tokenizer, embed=prefix_projections)
-        curr_text = f" is a picture of {curr_text} and a social media post would caption it {caption}"
-        tokens = torch.tensor(self.tokenizer.encode(curr_text)).to(self.device)
-        tokens, mask = self.pad_tokens(tokens)
-        embedding_text = self.gpt.transformer.wte(tokens).unsqueeze(0)
-        embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
+        # curr_text = generate2(self.original_model, self.tokenizer, embed=prefix_projections)
+        # curr_text = f" is a picture of {curr_text} and a social media post would caption it {caption}"
+        # tokens = torch.tensor(self.tokenizer.encode(curr_text)).to(self.device)
+        # tokens, mask = self.pad_tokens(tokens)
+        # embedding_text = self.gpt.transformer.wte(tokens).unsqueeze(0)
+        # embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
         
+        curr_text = generate2(self.original_model, self.tokenizer, embed=prefix_projections[0].unsqueeze(0))
+        curr_text = f" is a picture of {curr_text} and a social media post would caption it {caption[0]}"
+        tokens = torch.tensor(self.tokenizer.encode(curr_text)).to(self.device)
+        batch_tokens, batch_mask = self.pad_tokens(tokens)
+        batch_tokens = batch_tokens.unsqueeze(0)
+        batch_mask = batch_mask.unsqueeze(0)
+        prefix_projections = self.clip_project(prefix).view(-1, self.prefix_length, self.gpt_embedding_size)
+        for i in range(1, prefix_projections.shape[0]):
+            curr_text = generate2(self.original_model, self.tokenizer, embed=prefix_projections[i].unsqueeze(0))
+            curr_text = f" is a picture of {curr_text} and a social media post would caption it {caption[i]}"
+            tokens = torch.tensor(self.tokenizer.encode(curr_text)).to(self.device)
+            tokens, mask = self.pad_tokens(tokens)
+            tokens = tokens.unsqueeze(0)
+            mask = mask.unsqueeze(0)
+            batch_tokens = torch.cat((batch_tokens, tokens), dim=0)
+            batch_mask = torch.cat((batch_mask, mask), dim=0)
+        embedding_text = self.gpt.transformer.wte(batch_tokens)
+        embedding_cat = torch.cat((prefix_projections, embedding_text), dim=1)
+
+
+
         if labels is not None:
             dummy_token = self.get_dummy_token(tokens.shape[0], tokens.device)
             labels = torch.cat((dummy_token, tokens), dim=1)
-        out = self.gpt(inputs_embeds=embedding_cat, labels=labels, attention_mask=mask)
+        out = self.gpt(inputs_embeds=embedding_cat, labels=labels, attention_mask=batch_mask)
         return out
 
     def __init__(self, prefix_length: int, clip_length: Optional[int] = None, prefix_size: int = 512,

@@ -18,7 +18,7 @@ validation_data = InstagramDataset(clip_model, preprocess, tokenizer, split="tes
 # train_data = Subset(train_data, indices=range(320))
 validation_data = Subset(validation_data, indices=range(1000))
 num_data_pts = 8
-lora_ranks = [4, 16, 64, 256]
+lora_ranks = [4]
 for rank in lora_ranks:
     config = LoraConfig(
         r=rank,
@@ -32,6 +32,7 @@ for rank in lora_ranks:
     print(f"Training Rank {rank} LoRA | Total Parameters: {num(model)} | Trainable Parameters: {num_train(model)}")
     train_loss, val_loss = fine_tune(model, train_data, state_prefix=f"rank_{rank}", validation=validation_data, epochs=1, batch_size=40, device=device, num_data_pts=num_data_pts, checkpoint_path="checkpoints/LoRA", chart_title=f"LoRA Rank {rank}")
     x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(val_loss), num=len(val_loss), endpoint=False)
+    plt.clf() 
     plt.plot(x_axis_val, val_loss, label='Validation Loss')
     plt.ylabel('Cross Entropy Loss')
     plt.xlabel('Epochs')
