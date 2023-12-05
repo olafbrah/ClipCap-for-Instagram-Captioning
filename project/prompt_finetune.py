@@ -43,7 +43,7 @@ def fine_tune(model, train, validation=None, epochs=5, batch_size=10, device="cp
             validation_loss.extend(loss[1])
         else:
             train_loss.extend(loss[0])
-            plt.clf() 
+        plt.clf() 
         x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(validation_loss), num=len(validation_loss), endpoint=False)
 
         plt.plot(x_axis_val, validation_loss, label='Validation Loss')

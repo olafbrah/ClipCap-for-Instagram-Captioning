@@ -1,6 +1,8 @@
 import clip
 from peft import LoraConfig
 from lora_model import LoraCaptionModel, num, num_train
+from clip_model import CaptionModel
+
 from dataset import InstagramDataset
 from base_finetune import fine_tune
 from transformers import GPT2Tokenizer
@@ -8,6 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Subset
 import numpy as np
+from peft import LoraConfig, get_peft_model
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 clip_model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
@@ -18,17 +21,26 @@ validation_data = InstagramDataset(clip_model, preprocess, tokenizer, split="tes
 # train_data = Subset(train_data, indices=range(320))
 validation_data = Subset(validation_data, indices=range(1000))
 num_data_pts = 8
-lora_ranks = [4]
+lora_ranks = [4, 16, 64]
 for rank in lora_ranks:
     config = LoraConfig(
         r=rank,
         lora_alpha=16,
-        target_modules=["wte", "wpe", "c_attn", "c_proj", "c_fc"],
+        # target_modules=["wte", "wpe", "c_attn", "c_proj", "c_fc", "dsfs"],
+        target_modules=['gpt.transformer.wte', 'gpt.transformer.wpe', 'gpt.transformer.h.0.attn.c_attn', 'gpt.transformer.h.0.mlp.c_proj', 'gpt.transformer.h.0.mlp.c_fc'],
+
         lora_dropout=0.1,
         bias="none",
         modules_to_save=["classifier"],
     )
-    model = LoraCaptionModel(config)
+    # base_model = LoraCaptionModel(config)
+    base_model = CaptionModel(10)
+    
+    # print([(n, type(m)) for n, m in base.named_modules()])
+    model = get_peft_model(base_model, config)
+    print(model.print_trainable_parameters())
+
+    # model = get_peft_model(base_model, config)
     print(f"Training Rank {rank} LoRA | Total Parameters: {num(model)} | Trainable Parameters: {num_train(model)}")
     train_loss, val_loss = fine_tune(model, train_data, state_prefix=f"rank_{rank}", validation=validation_data, epochs=1, batch_size=40, device=device, num_data_pts=num_data_pts, checkpoint_path="checkpoints/LoRA", chart_title=f"LoRA Rank {rank}")
     x_axis_val = np.linspace(1/num_data_pts, 1/num_data_pts * len(val_loss), num=len(val_loss), endpoint=False)

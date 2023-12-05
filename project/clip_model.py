@@ -135,8 +135,10 @@ def generate(
                 generated = torch.cat((generated, next_token_embed), dim=1)
                 if stop_token_index == next_token.item():
                     break
-
-            output_list = list(tokens.squeeze().cpu().numpy())
+            if tokens.shape[1] <=1:
+                output_list = []
+            else:
+                output_list = list(tokens.squeeze().cpu().numpy())
             output_text = tokenizer.decode(output_list)
             generated_list.append(output_text)
 

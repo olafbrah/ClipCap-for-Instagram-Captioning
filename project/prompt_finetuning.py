@@ -17,7 +17,7 @@ tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 train_data = PromptedInstagramDataset(clip_model, preprocess, tokenizer, path="instagram_data", device=device)
 validation_data = PromptedInstagramDataset(clip_model, preprocess, tokenizer, split="test")
 # train_data = Subset(train_data, indices=range(500))
-validation_data = Subset(validation_data, indices=range(1000))
+# validation_data = Subset(validation_data, indices=range(1000))
 
 # model = CaptionModel(10)
 model = PromptedCaptionModel(10, device=device)
@@ -26,7 +26,7 @@ model = model.eval()
 model = model.to(device)
 num_data_pts = 8
 epochs = 4
-train_loss, val_loss = fine_tune(model, train_data, validation=None, epochs=epochs, batch_size=16, device=device, num_data_pts=num_data_pts, 
+train_loss, val_loss = fine_tune(model, train_data, validation=validation_data, epochs=epochs, batch_size=16, device=device, num_data_pts=num_data_pts, 
                           checkpoint_path="checkpoints/prompted", chart_title="Prompted Model")
 torch.save(model.state_dict(), f"checkpoints/prompted/complete_prompt_weights.pt")
 
