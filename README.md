@@ -10,8 +10,7 @@ Image captioning is a fundamental task in vision-language understanding, where a
 
 ## Overview
 To help visualize the results we provide a Colab notebook found in `Collab_Inference_Notebook.ipynb`.   
-The notebook requires pretrained weights from [weights](https://drive.google.com/drive/folders/1z68jSlSbBZ6mHuqmcpcO3-aEKLUKb72X?usp=sharing)  
-on images of your choosing. It is recommended to run this in [Google Colab](https://colab.research.google.com/drive/1tuoAC5F4sC7qid56Z0ap-stR3rwdk0ZV?usp=sharing) to be added to "MyDrive"
+The notebook requires pretrained weights from [weights](https://drive.google.com/drive/folders/1z68jSlSbBZ6mHuqmcpcO3-aEKLUKb72X?usp=sharing) and runs our models on images from the test set of our dataset. It is recommended to run this in [Google Colab](https://colab.research.google.com/drive/1o6g8udv-w7cRBlfQVy6vZ6BgVGlzgoTt?usp=sharing) to be added to "MyDrive"
 
 Nearly all of our work is done in the projects directory. Here is how we trained the models.
 1. Run the following commands to set up a Conda environment (you may need to do lots of pip installs and this was basically impossible on collab (spent 8+ hrs))
