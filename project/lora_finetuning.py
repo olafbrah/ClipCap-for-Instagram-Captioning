@@ -23,11 +23,15 @@ validation_data = Subset(validation_data, indices=range(1000))
 num_data_pts = 8
 lora_ranks = [4, 16, 64]
 for rank in lora_ranks:
+    modules = []
+    for i in range(11):
+        modules.append(f"")
+
     config = LoraConfig(
         r=rank,
         lora_alpha=16,
-        # target_modules=["wte", "wpe", "c_attn", "c_proj", "c_fc", "dsfs"],
-        target_modules=['gpt.transformer.wte', 'gpt.transformer.wpe', 'gpt.transformer.h.0.attn.c_attn', 'gpt.transformer.h.0.mlp.c_proj', 'gpt.transformer.h.0.mlp.c_fc'],
+        target_modules=["c_attn", "c_proj", "c_fc"],
+        # target_modules=['gpt.transformer' d],
 
         lora_dropout=0.1,
         bias="none",
@@ -36,10 +40,10 @@ for rank in lora_ranks:
     # base_model = LoraCaptionModel(config)
     base_model = CaptionModel(10)
     
-    # print([(n, type(m)) for n, m in base.named_modules()])
+    print([(n, type(m)) for n, m in base_model.named_modules()])
     model = get_peft_model(base_model, config)
     print(model.print_trainable_parameters())
-
+    print(base_model)
     # model = get_peft_model(base_model, config)
     print(f"Training Rank {rank} LoRA | Total Parameters: {num(model)} | Trainable Parameters: {num_train(model)}")
     train_loss, val_loss = fine_tune(model, train_data, state_prefix=f"rank_{rank}", validation=validation_data, epochs=1, batch_size=40, device=device, num_data_pts=num_data_pts, checkpoint_path="checkpoints/LoRA", chart_title=f"LoRA Rank {rank}")
